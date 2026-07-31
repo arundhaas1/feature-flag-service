@@ -9,7 +9,7 @@ import java.util.Map;
 public class FeatureFlagRepository {
     public Map<String, Boolean> getFlagList(String app){
         Map<String, Boolean> flagStatus = new HashMap<>();
-        flagStatus.put(app, true);
+        flagStatus.put(app, false);
         return flagStatus;
     }
 }

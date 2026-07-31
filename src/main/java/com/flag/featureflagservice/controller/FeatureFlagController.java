@@ -1,13 +1,12 @@
 package com.flag.featureflagservice.controller;
 import com.flag.featureflagservice.service.FeatureFlagService;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
 
 @RestController
+@RequestMapping("/api/v1")
 public class FeatureFlagController {
     FeatureFlagService featureFlagService; //Auto Injected
     public FeatureFlagController(FeatureFlagService featureFlagService){
@@ -17,5 +16,12 @@ public class FeatureFlagController {
     @GetMapping("/{app}/flags")
     public Map<String, Boolean> getFlagList(@PathVariable String app) {
         return featureFlagService.getFlagList(app);
+    }
+
+    @GetMapping("{app}/flags/{flagId}")
+    public boolean getFlagList(@PathVariable String app,
+                               @PathVariable Long flagId,
+                               @RequestParam(required = false) String stage) { // False means mandatory
+        return false;
     }
 }
