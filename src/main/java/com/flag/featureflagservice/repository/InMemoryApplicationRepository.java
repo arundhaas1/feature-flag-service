@@ -21,8 +21,13 @@ public class InMemoryApplicationRepository implements ApplicationRepository{
     }
 
     @Override
-    public Application getApplication(Long id) {
+    public Application get(Long id) {
         return applications.get(id);
+    }
+
+    @Override
+    public Application add(Application application) {
+        return applications.put(application.getId(), application);
     }
 
     private Application getDummyApp(Long id, String name){

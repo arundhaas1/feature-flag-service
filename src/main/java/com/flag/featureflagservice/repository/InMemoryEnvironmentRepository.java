@@ -18,8 +18,13 @@ public class InMemoryEnvironmentRepository implements EnvironmentRepository{
     }
 
     @Override
-    public Environment getEnvironment(Long id) {
+    public Environment get(Long id) {
         return null;
+    }
+
+    @Override
+    public Environment add(Environment environment) {
+        return environments.put(environment.getId(), environment);
     }
 
     private Environment getDummyEnv(Long id, Env env){

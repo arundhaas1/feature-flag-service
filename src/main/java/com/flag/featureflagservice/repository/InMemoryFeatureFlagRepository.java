@@ -31,28 +31,30 @@ public class InMemoryFeatureFlagRepository implements FeatureFlagRepository {
 
     @Override
     public FeatureFlag addFlag(FeatureFlag flag) {
+//        featureFlag.put(flag.getId(), flag);
         return null;
     }
 
     @Override
     public FeatureFlagState updateFlag(FeatureFlagState flag) {
-        return null;
+        featureFlag.put(flag.getId(), flag);
+        return featureFlag.get(flag.getId());
     }
 
     @Override
-    public FeatureFlagState[] getFlagList(FeatureFlagState flag) {
-        return new FeatureFlagState[0];
+    public FeatureFlagState[] getFlagList(Application application, Environment environment) {
+        return featureFlag.values().toArray(new FeatureFlagState[featureFlag.size()]);
     }
 
     @Override
-    public void deleteFlag(FeatureFlagState flag) {
-
+    public void deleteFlag(Long flagId) {
+        featureFlag.remove(flagId);
     }
 
     private FeatureFlagState getDummyFlag(Long id, Long flagId, String flagKey, boolean isEnabled){
-        Application app =  applicationRepository.getApplication(id);
+        Application app =  applicationRepository.get(id);
         FeatureFlag flag = new FeatureFlag(flagId,flagKey, flagKey, app, Instant.now(), "Arun");
-        Environment environment = environmentRepository.getEnvironment(33L);
+        Environment environment = environmentRepository.get(33L);
         return new FeatureFlagState(id,flag, environment, isEnabled, 1);
     }
 }
