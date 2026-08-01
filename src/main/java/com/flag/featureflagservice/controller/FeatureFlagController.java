@@ -19,7 +19,8 @@ public class FeatureFlagController {
 
     @GetMapping("/{app}/flags")
     public Map<String, Boolean> getFlagList(@PathVariable String app) {
-        return featureFlagService.getFlagList(app);
+//        return featureFlagService.getFlagList(app);
+        return null;
     }
 
     @GetMapping("{app}/flags/{flagId}")

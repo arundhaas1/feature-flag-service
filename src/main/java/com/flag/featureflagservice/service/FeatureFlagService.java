@@ -1,21 +1,24 @@
 package com.flag.featureflagservice.service;
 
+import com.flag.featureflagservice.model.Env;
+import com.flag.featureflagservice.model.Environment;
+import com.flag.featureflagservice.model.FeatureFlagState;
 import com.flag.featureflagservice.repository.FeatureFlagRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.flag.featureflagservice.repository.environmentRepository;
 import org.springframework.stereotype.Service;
-import java.util.Map;
+
+import java.time.Instant;
 
 @Service
 public class FeatureFlagService {
     FeatureFlagRepository featureFlagRepository;
-    Integer value;
 
     public FeatureFlagService(FeatureFlagRepository featureFlagRepository){
         this.featureFlagRepository = featureFlagRepository;
     }
 
-    public Map<String, Boolean> getFlagList(String app){
-//        featureFlagRepository.getFlagList();
-        return null;
+    public FeatureFlagState getFlag(Long id, Long envId){
+        Environment environment = environmentRepository.get(envId);
+        return featureFlagRepository.getFlag(id, environment);
     }
 }

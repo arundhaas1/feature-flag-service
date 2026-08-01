@@ -10,9 +10,11 @@ import java.util.Map;
 public class InMemoryFeatureFlagRepository implements FeatureFlagRepository {
     private final Map<Long, FeatureFlagState> featureFlag = new HashMap<>();
     private ApplicationRepository applicationRepository;
+    private EnvironmentRepository environmentRepository;
 
-    public InMemoryFeatureFlagRepository(ApplicationRepository applicationRepository){
+    public InMemoryFeatureFlagRepository(ApplicationRepository applicationRepository, EnvironmentRepository environmentRepository){
         this.applicationRepository = applicationRepository;
+        this.environmentRepository = environmentRepository;
 
         featureFlag.put(1L, getDummyFlag(1L, 11L, "tickets", true));
         featureFlag.put(2L, getDummyFlag(2L, 12L, "localistion", true));
@@ -23,7 +25,7 @@ public class InMemoryFeatureFlagRepository implements FeatureFlagRepository {
     }
 
     @Override
-    public FeatureFlag getFlag(Long id) {
+    public FeatureFlagState getFlag(Long id, Environment environment) {
         return null;
     }
 
@@ -50,7 +52,7 @@ public class InMemoryFeatureFlagRepository implements FeatureFlagRepository {
     private FeatureFlagState getDummyFlag(Long id, Long flagId, String flagKey, boolean isEnabled){
         Application app =  applicationRepository.getApplication(id);
         FeatureFlag flag = new FeatureFlag(flagId,flagKey, flagKey, app, Instant.now(), "Arun");
-        Environment environment = new Environment(2L, Env.Local, "", Instant.now(), "Arun");
+        Environment environment = environmentRepository.getEnvironment(33L);
         return new FeatureFlagState(id,flag, environment, isEnabled, 1);
     }
 }
