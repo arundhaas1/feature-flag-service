@@ -10,17 +10,12 @@ public class FeatureFlagService {
     FeatureFlagRepository featureFlagRepository;
     Integer value;
 
-    @Autowired
     public FeatureFlagService(FeatureFlagRepository featureFlagRepository){
         this.featureFlagRepository = featureFlagRepository;
     }
 
-    public FeatureFlagService(FeatureFlagRepository featureFlagRepository, Integer v){
-        this.featureFlagRepository = featureFlagRepository;
-        this.value = 12;
-    }
-
     public Map<String, Boolean> getFlagList(String app){
-        return featureFlagRepository.getFlagList(app);
+//        featureFlagRepository.getFlagList();
+        return null;
     }
 }

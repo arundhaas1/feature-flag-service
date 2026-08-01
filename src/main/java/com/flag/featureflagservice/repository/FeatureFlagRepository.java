@@ -1,19 +1,12 @@
 package com.flag.featureflagservice.repository;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Repository;
-import java.util.HashMap;
-import java.util.Map;
 
-@Repository
-@ConfigurationProperties
-public class FeatureFlagRepository {
-    @Value("${spring.application.name}")
-    private String appName;
+import com.flag.featureflagservice.model.FeatureFlag;
+import com.flag.featureflagservice.model.FeatureFlagState;
 
-    public Map<String, Boolean> getFlagList(String app){
-        Map<String, Boolean> flagStatus = new HashMap<>();
-        flagStatus.put(appName, false);
-        return flagStatus;
-    }
+public interface FeatureFlagRepository {
+    public FeatureFlag getFlag(Long id);
+    public FeatureFlag addFlag(FeatureFlag flag);
+    public FeatureFlagState updateFlag(FeatureFlagState flag);
+    public FeatureFlagState[] getFlagList(FeatureFlagState flag);
+    public void deleteFlag(FeatureFlagState flag);
 }
