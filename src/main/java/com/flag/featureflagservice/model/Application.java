@@ -1,6 +1,7 @@
 package com.flag.featureflagservice.model;
 import com.flag.featureflagservice.controller.input.AddApplicationRequest;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Pattern;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -18,6 +19,7 @@ public class Application {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     @Column(name = "name", nullable = false, unique = true, length = 30)
+    @Pattern(regexp = "^[A-Za-z0-9]+$")
     private String name;
     @Column(name = "description", length = 200)
     private String description;

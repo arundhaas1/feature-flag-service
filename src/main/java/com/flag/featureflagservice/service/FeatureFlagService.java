@@ -1,49 +1,71 @@
 package com.flag.featureflagservice.service;
 
 import com.flag.featureflagservice.controller.input.AddFeatureFlagRequest;
+import com.flag.featureflagservice.controller.output.FeatureFlagStateResponse;
 import com.flag.featureflagservice.model.*;
 import com.flag.featureflagservice.repository.ApplicationRepository;
 import com.flag.featureflagservice.repository.EnvironmentRepository;
 import com.flag.featureflagservice.repository.FeatureFlagRepository;
+import com.flag.featureflagservice.repository.FeatureFlagStateRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
 
 @Service
 public class FeatureFlagService {
     private final FeatureFlagRepository featureFlagRepository;
+    private final FeatureFlagStateRepository featureFlagStateRepository;
     private final EnvironmentRepository environmentRepository;
     private final ApplicationRepository applicationRepository;
 
-    public FeatureFlagService(FeatureFlagRepository featureFlagRepository, EnvironmentRepository environmentRepository, ApplicationRepository applicationRepository){
+    public FeatureFlagService(FeatureFlagRepository featureFlagRepository,
+                              FeatureFlagStateRepository featureFlagStateRepository,
+                              EnvironmentRepository environmentRepository,
+                              ApplicationRepository applicationRepository) {
         this.featureFlagRepository = featureFlagRepository;
+        this.featureFlagStateRepository = featureFlagStateRepository;
         this.environmentRepository = environmentRepository;
         this.applicationRepository = applicationRepository;
     }
 
-    public FeatureFlagState getFlag(String application, Long id, Long envId){
-        Environment environment = environmentRepository.get(envId);
-        return featureFlagRepository.getFlag(id, environment);
+    public FeatureFlagStateResponse getFlag(String appName, Long flagId, Long environmentId) {
+        FeatureFlagState state = featureFlagStateRepository
+                .findByFlagIdAndEnvironmentId(flagId, environmentId)
+                .orElseThrow();
+        return new FeatureFlagStateResponse(state);
     }
 
-    public FeatureFlagState updateFlag(FeatureFlagState flag){
-        return featureFlagRepository.updateFlag(flag);
+    public FeatureFlagState updateFlag(FeatureFlagState state) {
+        return featureFlagStateRepository.save(state);
     }
 
-    public FeatureFlag addFlag(String appName, AddFeatureFlagRequest flagRequest){
+    @Transactional
+    public FeatureFlag addFlag(String appName, AddFeatureFlagRequest flagRequest) {
         Application application = applicationRepository.findByName(appName).orElseThrow();
-        FeatureFlag flag = new FeatureFlag(null, flagRequest.getName(), flagRequest.getDescription(), application, Instant.now(), "Arun");
-        return featureFlagRepository.addFlag(flag);
+        FeatureFlag flag = featureFlagRepository.save(
+                new FeatureFlag(null, flagRequest.getName(), flagRequest.getDescription(),
+                        application, Instant.now(), "Arun"));
+
+        for (Long environmentId : flagRequest.getEnvironmentId()) {
+            Environment environment = environmentRepository.findById(environmentId).orElseThrow();
+            featureFlagStateRepository.save(new FeatureFlagState(null, flag, environment, false, 0));
+        }
+        return flag;
     }
 
-    public void deleteFlag(FeatureFlag flag){
-
-        featureFlagRepository.deleteFlag(flag.getId());
+    @Transactional
+    public void deleteFlag(Long flagId) {
+        featureFlagStateRepository.deleteByFlagId(flagId);
+        featureFlagRepository.deleteById(flagId);
     }
 
-    public FeatureFlagState[] getFlagList(Long appId, Long envId){
-        Environment environment = environmentRepository.get(envId);
-        Application application = applicationRepository.findById(appId).orElseThrow();
-        return featureFlagRepository.getFlagList(application, environment);
+    public List<FeatureFlagStateResponse> getFlagList(Long appId, Long environmentId) {
+        return featureFlagStateRepository
+                .findByFlagApplicationIdAndEnvironmentId(appId, environmentId)
+                .stream()
+                .map(FeatureFlagStateResponse::new)
+                .toList();
     }
 }

@@ -1,6 +1,7 @@
 package com.flag.featureflagservice.controller;
 import com.flag.featureflagservice.controller.input.AddFeatureFlagRequest;
 import com.flag.featureflagservice.controller.output.FeatureFlagResponse;
+import com.flag.featureflagservice.controller.output.FeatureFlagStateResponse;
 import com.flag.featureflagservice.model.FeatureFlag;
 import com.flag.featureflagservice.model.FeatureFlagState;
 import com.flag.featureflagservice.service.FeatureFlagService;
@@ -22,9 +23,9 @@ public class FeatureFlagController {
     }
 
     @GetMapping("/{application}/flags/{flagId}")
-    public FeatureFlagState getFlag(@PathVariable String application,
+    public FeatureFlagStateResponse getFlag(@PathVariable String application,
                                         @PathVariable Long flagId,
-                                        @RequestParam(required = true) Long environmentId) { // False means mandatory
+                                        @RequestParam Long environmentId) {
         return featureFlagService.getFlag(application, flagId, environmentId);
     }
 

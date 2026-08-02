@@ -1,6 +1,5 @@
 package com.flag.featureflagservice.controller.output;
 
-import com.flag.featureflagservice.model.Application;
 import com.flag.featureflagservice.model.FeatureFlag;
 import lombok.Data;
 import java.time.Instant;
@@ -10,7 +9,8 @@ public class FeatureFlagResponse {
     private Long id;
     private String flagKey;
     private String description;
-    private Application application;
+    private Long applicationId;
+    private String applicationName;
     private Instant createdAt;
     private String createdBy;
 
@@ -18,7 +18,8 @@ public class FeatureFlagResponse {
         this.id = flag.getId();
         this.flagKey = flag.getFlagKey();
         this.description = flag.getDescription();
-        this.application = flag.getApplication();
+        this.applicationId = flag.getApplication().getId();
+        this.applicationName = flag.getApplication().getName();
         this.createdAt = flag.getCreatedAt();
         this.createdBy = flag.getCreatedBy();
     }
