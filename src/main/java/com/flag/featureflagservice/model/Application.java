@@ -17,13 +17,13 @@ public class Application {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Column(nullable = false, unique = true, length = 30)
+    @Column(name = "name", nullable = false, unique = true, length = 30)
     private String name;
-    @Column(length = 200)
+    @Column(name = "description", length = 200)
     private String description;
-    @Column(nullable = false)
+    @Column(name = "created_by", nullable = false)
     private String createdBy;
-    @Column(nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
 
