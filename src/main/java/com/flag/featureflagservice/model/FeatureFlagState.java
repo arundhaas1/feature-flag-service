@@ -25,6 +25,10 @@ public class FeatureFlagState {
     @Version
     private int version;
 
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
     public FeatureFlagState(Long id, FeatureFlag flag, Environment environment, boolean enabled, int version) {
         this.id = id;
         this.flag = flag;

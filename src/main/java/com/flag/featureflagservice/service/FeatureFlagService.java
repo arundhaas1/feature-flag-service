@@ -1,7 +1,11 @@
 package com.flag.featureflagservice.service;
 
 import com.flag.featureflagservice.controller.input.AddFeatureFlagRequest;
+import com.flag.featureflagservice.controller.input.UpdateFeatureFlagRequest;
 import com.flag.featureflagservice.controller.output.FeatureFlagStateResponse;
+import com.flag.featureflagservice.exception.ApplicationNotFoundException;
+import com.flag.featureflagservice.exception.EnvironmentNotFoundException;
+import com.flag.featureflagservice.exception.FeatureFlagNotFoundException;
 import com.flag.featureflagservice.model.*;
 import com.flag.featureflagservice.repository.ApplicationRepository;
 import com.flag.featureflagservice.repository.EnvironmentRepository;
@@ -33,23 +37,30 @@ public class FeatureFlagService {
     public FeatureFlagStateResponse getFlag(String appName, Long flagId, Long environmentId) {
         FeatureFlagState state = featureFlagStateRepository
                 .findByFlagIdAndEnvironmentId(flagId, environmentId)
-                .orElseThrow();
+                .orElseThrow(() -> new FeatureFlagNotFoundException(flagId));
         return new FeatureFlagStateResponse(state);
     }
 
-    public FeatureFlagState updateFlag(FeatureFlagState state) {
-        return featureFlagStateRepository.save(state);
+    @Transactional
+    public FeatureFlagStateResponse updateFlag(String appName, Long flagId, UpdateFeatureFlagRequest request) {
+        FeatureFlagState state = featureFlagStateRepository
+                .findByFlagIdAndEnvironmentId(flagId, request.getEnvironmentId())
+                .orElseThrow(() -> new FeatureFlagNotFoundException(flagId));
+        state.setEnabled(request.getEnabled());
+        return new FeatureFlagStateResponse(featureFlagStateRepository.save(state));
     }
 
     @Transactional
     public FeatureFlag addFlag(String appName, AddFeatureFlagRequest flagRequest) {
-        Application application = applicationRepository.findByName(appName).orElseThrow();
+        Application application = applicationRepository.findByName(appName)
+                .orElseThrow(() -> new ApplicationNotFoundException(appName));
         FeatureFlag flag = featureFlagRepository.save(
                 new FeatureFlag(null, flagRequest.getName(), flagRequest.getDescription(),
                         application, Instant.now(), "Arun"));
 
         for (Long environmentId : flagRequest.getEnvironmentId()) {
-            Environment environment = environmentRepository.findById(environmentId).orElseThrow();
+            Environment environment = environmentRepository.findById(environmentId)
+                    .orElseThrow(() -> new EnvironmentNotFoundException(environmentId));
             featureFlagStateRepository.save(new FeatureFlagState(null, flag, environment, false, 0));
         }
         return flag;
@@ -61,9 +72,11 @@ public class FeatureFlagService {
         featureFlagRepository.deleteById(flagId);
     }
 
-    public List<FeatureFlagStateResponse> getFlagList(Long appId, Long environmentId) {
+    public List<FeatureFlagStateResponse> getFlagList(String appName, Long environmentId) {
+        Application application = applicationRepository.findByName(appName)
+                .orElseThrow(() -> new ApplicationNotFoundException(appName));
         return featureFlagStateRepository
-                .findByFlagApplicationIdAndEnvironmentId(appId, environmentId)
+                .findByFlagApplicationIdAndEnvironmentId(application.getId(), environmentId)
                 .stream()
                 .map(FeatureFlagStateResponse::new)
                 .toList();
