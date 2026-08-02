@@ -15,9 +15,8 @@ public class Environment {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Enumerated(EnumType.STRING)
     @Column(name = "name", length = 100, unique = true, nullable = false)
-    private Env envName;
+    private String name;
     @Column(name = "description", nullable = false)
     private String description;
     @Column(name = "created_at", nullable = false)
@@ -25,9 +24,9 @@ public class Environment {
     @Column(name = "created_by", nullable = false)
     private String addedBy;
 
-    public Environment(Long id, Env envName, String description, Instant addedAt, String addedBy) {
+    public Environment(Long id, String name, String description, Instant addedAt, String addedBy) {
         this.id = id;
-        this.envName = envName;
+        this.name = name;
         this.description = description;
         this.addedAt = addedAt;
         this.addedBy = addedBy;

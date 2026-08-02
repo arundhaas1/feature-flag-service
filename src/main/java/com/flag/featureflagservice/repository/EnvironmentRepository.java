@@ -1,9 +1,8 @@
 package com.flag.featureflagservice.repository;
 
-import com.flag.featureflagservice.model.Env;
 import com.flag.featureflagservice.model.Environment;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface EnvironmentRepository extends JpaRepository<Environment, Long> {
-    boolean existsByEnvName(Env envName);
+    boolean existsByName(String name);
 }

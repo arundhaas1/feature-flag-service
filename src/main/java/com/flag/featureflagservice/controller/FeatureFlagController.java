@@ -60,4 +60,12 @@ public class FeatureFlagController {
                            @PathVariable Long flagId) {
         featureFlagService.deleteFlag(flagId);
     }
+
+    @GetMapping("/{application}/evaluate")
+    public boolean evaluateFlag(@PathVariable String application,
+                                @RequestParam String flag,
+                                @RequestParam String environment,
+                                @RequestParam(required = false) Long userId){
+        return featureFlagService.evaluate(flag, application, environment, userId);
+    }
 }

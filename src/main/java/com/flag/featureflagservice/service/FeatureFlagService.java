@@ -81,4 +81,17 @@ public class FeatureFlagService {
                 .map(FeatureFlagStateResponse::new)
                 .toList();
     }
+
+    public boolean evaluate(String flagKey, String appName, String env, Long userId) {
+        // userId is reserved for per-user targeting rules (future); global toggle for now.
+        return featureFlagStateRepository
+                .findForEvaluation(flagKey, appName, env)
+                .map(FeatureFlagState::isEnabled)
+                .orElseGet(() -> {
+                    if (!environmentRepository.existsByName(env)) {
+                        throw new EnvironmentNotFoundException(env);
+                    }
+                    return false;
+                });
+    }
 }

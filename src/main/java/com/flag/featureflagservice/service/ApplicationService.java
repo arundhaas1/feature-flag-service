@@ -15,6 +15,6 @@ public class ApplicationService {
 
     public Application addApplication(AddApplicationRequest addApplicationRequest) {
         Application application = new Application(addApplicationRequest);
-        return applicationRepository.add(application);
+        return applicationRepository.save(application);
     }
 }
