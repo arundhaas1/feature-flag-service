@@ -2,11 +2,13 @@ package com.flag.featureflagservice.repository;
 
 import com.flag.featureflagservice.model.Env;
 import com.flag.featureflagservice.model.Environment;
+import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
+@Repository
 public class InMemoryEnvironmentRepository implements EnvironmentRepository{
     private final Map<Long, Environment> environments = new HashMap<>();
 
@@ -19,7 +21,7 @@ public class InMemoryEnvironmentRepository implements EnvironmentRepository{
 
     @Override
     public Environment get(Long id) {
-        return null;
+        return environments.get(id);
     }
 
     @Override

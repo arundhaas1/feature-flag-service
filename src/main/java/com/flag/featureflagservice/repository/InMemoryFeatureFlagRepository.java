@@ -26,13 +26,14 @@ public class InMemoryFeatureFlagRepository implements FeatureFlagRepository {
 
     @Override
     public FeatureFlagState getFlag(Long id, Environment environment) {
-        return null;
+        return featureFlag.get(id);
     }
 
     @Override
     public FeatureFlag addFlag(FeatureFlag flag) {
-//        featureFlag.put(flag.getId(), flag);
-        return null;
+        //update next flow
+        featureFlag.put(flag.getId(), getDummyFlag(flag.getId(), flag.getId(), flag.getFlagKey(), false));
+        return flag;
     }
 
     @Override
@@ -52,7 +53,7 @@ public class InMemoryFeatureFlagRepository implements FeatureFlagRepository {
     }
 
     private FeatureFlagState getDummyFlag(Long id, Long flagId, String flagKey, boolean isEnabled){
-        Application app =  applicationRepository.get(id);
+        Application app =  applicationRepository.findById(id).orElse(null);
         FeatureFlag flag = new FeatureFlag(flagId,flagKey, flagKey, app, Instant.now(), "Arun");
         Environment environment = environmentRepository.get(33L);
         return new FeatureFlagState(id,flag, environment, isEnabled, 1);

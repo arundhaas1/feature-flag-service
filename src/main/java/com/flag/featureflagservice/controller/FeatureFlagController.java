@@ -1,7 +1,12 @@
 package com.flag.featureflagservice.controller;
+import com.flag.featureflagservice.controller.input.AddFeatureFlagRequest;
+import com.flag.featureflagservice.controller.output.FeatureFlagResponse;
+import com.flag.featureflagservice.model.FeatureFlag;
+import com.flag.featureflagservice.model.FeatureFlagState;
 import com.flag.featureflagservice.service.FeatureFlagService;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -10,33 +15,24 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1")
 public class FeatureFlagController {
-    FeatureFlagService featureFlagService; //Auto Injected
+    private final FeatureFlagService featureFlagService;
 
     public FeatureFlagController(FeatureFlagService featureFlagService){
         this.featureFlagService = featureFlagService;
-        System.out.println("Constructor");
     }
 
-    @GetMapping("/{app}/flags")
-    public Map<String, Boolean> getFlagList(@PathVariable String app) {
-//        return featureFlagService.getFlagList(app);
-        return null;
+    @GetMapping("/{application}/flags/{flagId}")
+    public FeatureFlagState getFlag(@PathVariable String application,
+                                        @PathVariable Long flagId,
+                                        @RequestParam(required = true) Long environmentId) { // False means mandatory
+        return featureFlagService.getFlag(application, flagId, environmentId);
     }
 
-    @GetMapping("{app}/flags/{flagId}")
-    public boolean getFlagList(@PathVariable String app,
-                               @PathVariable Long flagId,
-                               @RequestParam(required = false) String stage) { // False means mandatory
-        return false;
-    }
-
-    @PostConstruct
-    public void init() {
-        System.out.println("PostConstruct");
-    }
-
-    @PreDestroy
-    public void destroy() {
-        System.out.println("PreDestroy");
+    @PostMapping("/{application}/flags")
+    public FeatureFlagResponse addFlag(@PathVariable String application,
+                                       @Valid
+                                       @RequestBody AddFeatureFlagRequest flagRequest){
+        FeatureFlag flag =  featureFlagService.addFlag(application, flagRequest);
+        return new FeatureFlagResponse(flag);
     }
 }
