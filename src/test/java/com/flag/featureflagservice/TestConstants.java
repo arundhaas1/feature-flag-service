@@ -29,6 +29,15 @@ public final class TestConstants {
     public static final String LOGIN_URL = "/auth/login";
     public static final String WWW_AUTHENTICATE = "WWW-Authenticate";
 
+    public static final String SYSTEM_USER = "system";
+    public static final String DEFAULT_APP = "default";
+    public static final String APP_DESCRIPTION = "Checkout service";
+    public static final String FLAG_KEY = "newCheckout";
+    public static final String FLAG_DESCRIPTION = "Rolls out the rebuilt checkout";
+    public static final Long ENVIRONMENT_ID = 1L;
+    public static final String ENVIRONMENT_NAME = "QA";
+    public static final String ENVIRONMENT_DESCRIPTION = "QA environment";
+
     private TestConstants() {
     }
 }

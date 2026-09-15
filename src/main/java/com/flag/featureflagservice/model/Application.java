@@ -1,5 +1,4 @@
 package com.flag.featureflagservice.model;
-import com.flag.featureflagservice.controller.input.AddApplicationRequest;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Pattern;
 import lombok.AccessLevel;
@@ -28,13 +27,4 @@ public class Application {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-
-    //temp
-    public Application(AddApplicationRequest addApplicationRequest){
-        this.id = addApplicationRequest.getId();
-        this.name = addApplicationRequest.getName();
-        this.description = addApplicationRequest.getDescription();
-        this.createdBy = "Arun";
-        this.createdAt = Instant.now();
-    }
 }

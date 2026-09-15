@@ -11,6 +11,7 @@ import com.flag.featureflagservice.repository.ApplicationRepository;
 import com.flag.featureflagservice.repository.EnvironmentRepository;
 import com.flag.featureflagservice.repository.FeatureFlagRepository;
 import com.flag.featureflagservice.repository.FeatureFlagStateRepository;
+import com.flag.featureflagservice.security.CurrentUserProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,15 +24,18 @@ public class FeatureFlagService {
     private final FeatureFlagStateRepository featureFlagStateRepository;
     private final EnvironmentRepository environmentRepository;
     private final ApplicationRepository applicationRepository;
+    private final CurrentUserProvider currentUserProvider;
 
     public FeatureFlagService(FeatureFlagRepository featureFlagRepository,
                               FeatureFlagStateRepository featureFlagStateRepository,
                               EnvironmentRepository environmentRepository,
-                              ApplicationRepository applicationRepository) {
+                              ApplicationRepository applicationRepository,
+                              CurrentUserProvider currentUserProvider) {
         this.featureFlagRepository = featureFlagRepository;
         this.featureFlagStateRepository = featureFlagStateRepository;
         this.environmentRepository = environmentRepository;
         this.applicationRepository = applicationRepository;
+        this.currentUserProvider = currentUserProvider;
     }
 
     public FeatureFlagStateResponse getFlag(String appName, Long flagId, Long environmentId) {
@@ -56,7 +60,7 @@ public class FeatureFlagService {
                 .orElseThrow(() -> new ApplicationNotFoundException(appName));
         FeatureFlag flag = featureFlagRepository.save(
                 new FeatureFlag(null, flagRequest.getName(), flagRequest.getDescription(),
-                        application, Instant.now(), "Arun"));
+                        application, Instant.now(), currentUserProvider.currentUsername()));
 
         for (Long environmentId : flagRequest.getEnvironmentId()) {
             Environment environment = environmentRepository.findById(environmentId)
@@ -82,8 +86,7 @@ public class FeatureFlagService {
                 .toList();
     }
 
-    public boolean evaluate(String flagKey, String appName, String env, Long userId) {
-        // userId is reserved for per-user targeting rules (future); global toggle for now.
+    public boolean evaluate(String flagKey, String appName, String env) {
         return featureFlagStateRepository
                 .findForEvaluation(flagKey, appName, env)
                 .map(FeatureFlagState::isEnabled)
