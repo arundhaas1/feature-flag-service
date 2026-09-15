@@ -99,6 +99,18 @@ class FeatureFlagServiceTest {
     }
 
     @Test
+    @DisplayName("Given a flag with a description, when listing, then the description is returned")
+    void givenFlagWithDescription_whenGetFlagList_thenDescriptionIsReturned() {
+        when(applicationRepository.findByName(DEFAULT_APP)).thenReturn(Optional.of(application()));
+        when(featureFlagStateRepository.findByFlagApplicationIdAndEnvironmentId(1L, ENVIRONMENT_ID))
+                .thenReturn(List.of(state(true)));
+
+        var responses = featureFlagService.getFlagList(DEFAULT_APP, ENVIRONMENT_ID);
+
+        assertEquals(FLAG_DESCRIPTION, responses.get(0).getDescription());
+    }
+
+    @Test
     @DisplayName("Given an enabled flag, when evaluating, then true is returned")
     void givenEnabledFlag_whenEvaluate_thenReturnsTrue() {
         when(featureFlagStateRepository.findForEvaluation(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME))
