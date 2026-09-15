@@ -36,7 +36,11 @@ public final class TestConstants {
     public static final String FLAG_DESCRIPTION = "Rolls out the rebuilt checkout";
     public static final Long ENVIRONMENT_ID = 1L;
     public static final String ENVIRONMENT_NAME = "QA";
+    public static final String OTHER_ENVIRONMENT_NAME = "Production";
     public static final String ENVIRONMENT_DESCRIPTION = "QA environment";
+
+    public static final long CACHE_TTL_SECONDS = 600L;
+    public static final long CACHE_MAX_SIZE = 10_000L;
 
     private TestConstants() {
     }

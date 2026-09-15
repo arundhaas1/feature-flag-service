@@ -11,6 +11,7 @@ import java.util.Optional;
 public interface FeatureFlagStateRepository extends JpaRepository<FeatureFlagState, Long> {
     Optional<FeatureFlagState> findByFlagIdAndEnvironmentId(Long flagId, Long environmentId);
     List<FeatureFlagState> findByFlagApplicationIdAndEnvironmentId(Long applicationId, Long environmentId);
+    List<FeatureFlagState> findByFlagId(Long flagId);
     void deleteByFlagId(Long flagId);
 
     @Query("""

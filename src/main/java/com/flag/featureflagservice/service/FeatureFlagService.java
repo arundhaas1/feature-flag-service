@@ -1,5 +1,7 @@
 package com.flag.featureflagservice.service;
 
+import com.flag.featureflagservice.cache.FlagCache;
+import com.flag.featureflagservice.cache.FlagCacheKey;
 import com.flag.featureflagservice.controller.input.AddFeatureFlagRequest;
 import com.flag.featureflagservice.controller.input.UpdateFeatureFlagRequest;
 import com.flag.featureflagservice.controller.output.FeatureFlagStateResponse;
@@ -17,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class FeatureFlagService {
@@ -25,17 +28,20 @@ public class FeatureFlagService {
     private final EnvironmentRepository environmentRepository;
     private final ApplicationRepository applicationRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final FlagCache flagCache;
 
     public FeatureFlagService(FeatureFlagRepository featureFlagRepository,
                               FeatureFlagStateRepository featureFlagStateRepository,
                               EnvironmentRepository environmentRepository,
                               ApplicationRepository applicationRepository,
-                              CurrentUserProvider currentUserProvider) {
+                              CurrentUserProvider currentUserProvider,
+                              FlagCache flagCache) {
         this.featureFlagRepository = featureFlagRepository;
         this.featureFlagStateRepository = featureFlagStateRepository;
         this.environmentRepository = environmentRepository;
         this.applicationRepository = applicationRepository;
         this.currentUserProvider = currentUserProvider;
+        this.flagCache = flagCache;
     }
 
     public FeatureFlagStateResponse getFlag(String appName, Long flagId, Long environmentId) {
@@ -51,7 +57,9 @@ public class FeatureFlagService {
                 .findByFlagIdAndEnvironmentId(flagId, request.getEnvironmentId())
                 .orElseThrow(() -> new FeatureFlagNotFoundException(flagId));
         state.setEnabled(request.getEnabled());
-        return new FeatureFlagStateResponse(featureFlagStateRepository.save(state));
+        FeatureFlagState saved = featureFlagStateRepository.save(state);
+        flagCache.evict(keyFor(saved));
+        return new FeatureFlagStateResponse(saved);
     }
 
     @Transactional
@@ -72,8 +80,15 @@ public class FeatureFlagService {
 
     @Transactional
     public void deleteFlag(Long flagId) {
+        // Read the keys before the rows go: afterwards there is nothing left to derive them from.
+        List<FlagCacheKey> staleKeys = featureFlagStateRepository.findByFlagId(flagId).stream()
+                .map(FeatureFlagService::keyFor)
+                .toList();
+
         featureFlagStateRepository.deleteByFlagId(flagId);
         featureFlagRepository.deleteById(flagId);
+
+        staleKeys.forEach(flagCache::evict);
     }
 
     public List<FeatureFlagStateResponse> getFlagList(String appName, Long environmentId) {
@@ -87,14 +102,32 @@ public class FeatureFlagService {
     }
 
     public boolean evaluate(String flagKey, String appName, String env) {
-        return featureFlagStateRepository
-                .findForEvaluation(flagKey, appName, env)
-                .map(FeatureFlagState::isEnabled)
-                .orElseGet(() -> {
-                    if (!environmentRepository.existsByName(env)) {
-                        throw new EnvironmentNotFoundException(env);
-                    }
-                    return false;
-                });
+        FlagCacheKey key = new FlagCacheKey(flagKey, appName, env);
+
+        Optional<Boolean> cached = flagCache.lookup(key);
+        if (cached.isPresent()) {
+            return cached.get();
+        }
+
+        Optional<FeatureFlagState> state =
+                featureFlagStateRepository.findForEvaluation(flagKey, appName, env);
+        if (state.isPresent()) {
+            boolean enabled = state.get().isEnabled();
+            flagCache.store(key, enabled);
+            return enabled;
+        }
+
+        if (!environmentRepository.existsByName(env)) {
+            throw new EnvironmentNotFoundException(env);
+        }
+        // Deliberately not cached: a flag that does not exist yet may be created at any moment,
+        // and caching the miss would hide it until the entry expired.
+        return false;
+    }
+
+    private static FlagCacheKey keyFor(FeatureFlagState state) {
+        return new FlagCacheKey(state.getFlag().getFlagKey(),
+                state.getFlag().getApplication().getName(),
+                state.getEnvironment().getName());
     }
 }

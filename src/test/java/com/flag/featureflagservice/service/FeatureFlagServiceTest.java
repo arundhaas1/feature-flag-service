@@ -1,6 +1,9 @@
 package com.flag.featureflagservice.service;
 
+import com.flag.featureflagservice.cache.FlagCache;
+import com.flag.featureflagservice.cache.FlagCacheKey;
 import com.flag.featureflagservice.controller.input.AddFeatureFlagRequest;
+import com.flag.featureflagservice.controller.input.UpdateFeatureFlagRequest;
 import com.flag.featureflagservice.exception.EnvironmentNotFoundException;
 import com.flag.featureflagservice.model.Application;
 import com.flag.featureflagservice.model.Environment;
@@ -19,6 +22,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 import static com.flag.featureflagservice.TestConstants.APP_DESCRIPTION;
@@ -28,6 +32,7 @@ import static com.flag.featureflagservice.TestConstants.ENVIRONMENT_ID;
 import static com.flag.featureflagservice.TestConstants.ENVIRONMENT_NAME;
 import static com.flag.featureflagservice.TestConstants.FLAG_DESCRIPTION;
 import static com.flag.featureflagservice.TestConstants.FLAG_KEY;
+import static com.flag.featureflagservice.TestConstants.OTHER_ENVIRONMENT_NAME;
 import static com.flag.featureflagservice.TestConstants.SYSTEM_USER;
 import static com.flag.featureflagservice.TestConstants.USERNAME;
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -36,6 +41,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -56,6 +63,9 @@ class FeatureFlagServiceTest {
 
     @Mock
     private CurrentUserProvider currentUserProvider;
+
+    @Mock
+    private FlagCache flagCache;
 
     @InjectMocks
     private FeatureFlagService featureFlagService;
@@ -118,6 +128,95 @@ class FeatureFlagServiceTest {
                 () -> featureFlagService.evaluate(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME));
     }
 
+    @Test
+    @DisplayName("Given a cached answer, when evaluating, then the database is never queried")
+    void givenCachedAnswer_whenEvaluate_thenDatabaseIsNeverQueried() {
+        when(flagCache.lookup(cacheKey())).thenReturn(Optional.of(true));
+
+        boolean enabled = featureFlagService.evaluate(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME);
+
+        assertTrue(enabled);
+        verify(featureFlagStateRepository, never()).findForEvaluation(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME);
+    }
+
+    @Test
+    @DisplayName("Given a cache miss that finds a flag, when evaluating, then the answer is cached")
+    void givenCacheMissThatFindsFlag_whenEvaluate_thenAnswerIsCached() {
+        when(flagCache.lookup(cacheKey())).thenReturn(Optional.empty());
+        when(featureFlagStateRepository.findForEvaluation(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME))
+                .thenReturn(Optional.of(state(true)));
+
+        featureFlagService.evaluate(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME);
+
+        verify(flagCache).store(cacheKey(), true);
+    }
+
+    @Test
+    @DisplayName("Given a flag that does not exist, when evaluating, then the miss is not cached")
+    void givenFlagThatDoesNotExist_whenEvaluate_thenMissIsNotCached() {
+        when(flagCache.lookup(cacheKey())).thenReturn(Optional.empty());
+        when(featureFlagStateRepository.findForEvaluation(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME))
+                .thenReturn(Optional.empty());
+        when(environmentRepository.existsByName(ENVIRONMENT_NAME)).thenReturn(true);
+
+        featureFlagService.evaluate(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME);
+
+        // Caching the miss would hide the flag until the entry expired, once someone created it.
+        verify(flagCache, never()).store(cacheKey(), false);
+    }
+
+    @Test
+    @DisplayName("Given a toggle, when updating a flag, then only that environment's entry is evicted")
+    void givenToggle_whenUpdateFlag_thenOnlyThatEnvironmentEntryIsEvicted() {
+        FeatureFlagState stored = state(false);
+        when(featureFlagStateRepository.findByFlagIdAndEnvironmentId(1L, ENVIRONMENT_ID))
+                .thenReturn(Optional.of(stored));
+        when(featureFlagStateRepository.save(stored)).thenReturn(stored);
+
+        featureFlagService.updateFlag(DEFAULT_APP, 1L, updateRequest());
+
+        verify(flagCache).evict(cacheKey());
+    }
+
+    @Test
+    @DisplayName("Given a flag in two environments, when deleting it, then only its own keys are evicted")
+    void givenFlagInTwoEnvironments_whenDeleteFlag_thenOnlyItsOwnKeysAreEvicted() {
+        when(featureFlagStateRepository.findByFlagId(1L))
+                .thenReturn(List.of(stateIn(ENVIRONMENT_NAME, true), stateIn(OTHER_ENVIRONMENT_NAME, false)));
+
+        featureFlagService.deleteFlag(1L);
+
+        assertAll(
+                () -> verify(flagCache).evict(cacheKey()),
+                () -> verify(flagCache).evict(new FlagCacheKey(FLAG_KEY, DEFAULT_APP, OTHER_ENVIRONMENT_NAME)),
+                () -> verify(flagCache, never()).evictAll()
+        );
+    }
+
+    @Test
+    @DisplayName("Given a flag with no state rows, when deleting it, then nothing is evicted")
+    void givenFlagWithNoStateRows_whenDeleteFlag_thenNothingIsEvicted() {
+        when(featureFlagStateRepository.findByFlagId(1L)).thenReturn(List.of());
+
+        featureFlagService.deleteFlag(1L);
+
+        assertAll(
+                () -> verify(flagCache, never()).evict(cacheKey()),
+                () -> verify(flagCache, never()).evictAll()
+        );
+    }
+
+    private FlagCacheKey cacheKey() {
+        return new FlagCacheKey(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME);
+    }
+
+    private UpdateFeatureFlagRequest updateRequest() {
+        UpdateFeatureFlagRequest request = new UpdateFeatureFlagRequest();
+        request.setEnabled(true);
+        request.setEnvironmentId(ENVIRONMENT_ID);
+        return request;
+    }
+
     private AddFeatureFlagRequest addRequest() {
         AddFeatureFlagRequest request = new AddFeatureFlagRequest();
         request.setName(FLAG_KEY);
@@ -133,6 +232,14 @@ class FeatureFlagServiceTest {
     private Environment environment() {
         return new Environment(ENVIRONMENT_ID, ENVIRONMENT_NAME, ENVIRONMENT_DESCRIPTION,
                 Instant.now(), SYSTEM_USER);
+    }
+
+    private FeatureFlagState stateIn(String environmentName, boolean enabled) {
+        FeatureFlag flag = new FeatureFlag(1L, FLAG_KEY, FLAG_DESCRIPTION, application(),
+                Instant.now(), USERNAME);
+        Environment environment = new Environment(ENVIRONMENT_ID, environmentName,
+                ENVIRONMENT_DESCRIPTION, Instant.now(), SYSTEM_USER);
+        return new FeatureFlagState(1L, flag, environment, enabled, 0);
     }
 
     private FeatureFlagState state(boolean enabled) {
