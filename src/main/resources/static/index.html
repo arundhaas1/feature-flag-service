@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Feature Flags</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<main id="login-view" class="centred">
+  <form id="login-form" class="card" autocomplete="on">
+    <h1>Feature Flags</h1>
+    <p class="muted">Sign in to manage flags</p>
+
+    <label for="username">Username</label>
+    <input id="username" name="username" autocomplete="username" required autofocus>
+
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required>
+
+    <button type="submit" id="login-button">Sign in</button>
+    <p id="login-error" class="error" role="alert" hidden></p>
+  </form>
+</main>
+
+<div id="app-view" hidden>
+  <header class="topbar">
+    <span class="brand">Feature Flags</span>
+    <span class="spacer"></span>
+    <span id="current-user" class="muted"></span>
+    <span id="current-role" class="badge"></span>
+    <button id="logout" class="ghost" type="button">Sign out</button>
+  </header>
+
+  <main class="content">
+    <div class="toolbar">
+      <label for="environment">Environment</label>
+      <select id="environment"></select>
+      <button id="refresh" class="ghost" type="button">Refresh</button>
+      <span class="spacer"></span>
+      <span id="summary" class="muted"></span>
+    </div>
+
+    <p id="banner" class="banner" role="status" hidden></p>
+
+    <section class="panel">
+      <table>
+        <thead>
+          <tr>
+            <th>Flag</th>
+            <th>Description</th>
+            <th class="state-col">State</th>
+            <th class="action-col"></th>
+          </tr>
+        </thead>
+        <tbody id="flag-rows"></tbody>
+      </table>
+      <p id="empty" class="empty muted" hidden>No flags in this environment yet.</p>
+    </section>
+
+    <section class="panel" id="create-panel" hidden>
+      <h2>Add a flag</h2>
+      <form id="create-form" class="create-row">
+        <input id="flag-key" placeholder="flagKey" required
+               pattern="[A-Za-z0-9_.-]+" title="Letters, digits, dot, dash or underscore">
+        <input id="flag-description" placeholder="What does it control?">
+        <button type="submit">Create</button>
+      </form>
+      <p class="muted small">Created in every environment, disabled by default.</p>
+    </section>
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

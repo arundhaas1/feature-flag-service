@@ -97,6 +97,19 @@ class SecurityFilterChainTest {
     }
 
     @Test
+    @DisplayName("Given no credentials, when requesting the admin page, then it is served")
+    void givenNoCredentials_whenRequestingAdminPage_thenItIsServed() throws Exception {
+        mockMvc.perform(get("/index.html")).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Given no credentials, when requesting the page assets, then they are served")
+    void givenNoCredentials_whenRequestingPageAssets_thenTheyAreServed() throws Exception {
+        mockMvc.perform(get("/app.js")).andExpect(status().isOk());
+        mockMvc.perform(get("/styles.css")).andExpect(status().isOk());
+    }
+
+    @Test
     @DisplayName("Given Basic credentials, when calling a protected endpoint, then Basic still authenticates")
     void givenBasicCredentials_whenProtectedEndpoint_thenBasicStillWorks() throws Exception {
         mockMvc.perform(get(PROTECTED_URL).param(ENVIRONMENT_QUERY, ENVIRONMENT_ID)

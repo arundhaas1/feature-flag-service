@@ -43,6 +43,9 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+                        // The admin page is public; every API call it makes still needs a token.
+                        .requestMatchers(HttpMethod.GET, "/", "/index.html", "/app.js",
+                                "/styles.css", "/favicon.ico").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/*/evaluate").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/**").hasAnyRole("VIEWER", "EDITOR", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/v1/**").hasAnyRole("EDITOR", "ADMIN")
