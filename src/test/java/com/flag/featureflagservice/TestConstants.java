@@ -33,6 +33,8 @@ public final class TestConstants {
     public static final String DEFAULT_APP = "default";
     public static final String APP_DESCRIPTION = "Checkout service";
     public static final String FLAG_KEY = "newCheckout";
+    public static final String ORG_ID = "60021234567";
+    public static final String OTHER_ORG_ID = "60029999999";
     public static final String FLAG_DESCRIPTION = "Rolls out the rebuilt checkout";
     public static final Long ENVIRONMENT_ID = 1L;
     public static final String ENVIRONMENT_NAME = "QA";

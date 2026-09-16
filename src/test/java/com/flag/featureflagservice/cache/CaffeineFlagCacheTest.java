@@ -1,8 +1,11 @@
 package com.flag.featureflagservice.cache;
 
+import com.flag.featureflagservice.evaluation.FlagRules;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import java.util.Map;
 
 import static com.flag.featureflagservice.TestConstants.CACHE_MAX_SIZE;
 import static com.flag.featureflagservice.TestConstants.CACHE_TTL_SECONDS;
@@ -21,6 +24,9 @@ class CaffeineFlagCacheTest {
     private static final FlagCacheKey OTHER_KEY =
             new FlagCacheKey(FLAG_KEY, DEFAULT_APP, "Production");
 
+    private static final FlagRules ON = new FlagRules(true, Map.of());
+    private static final FlagRules OFF = new FlagRules(false, Map.of());
+
     private FlagCache flagCache;
 
     @BeforeEach
@@ -31,9 +37,9 @@ class CaffeineFlagCacheTest {
     @Test
     @DisplayName("Given a stored value, when looked up, then it is returned")
     void givenStoredValue_whenLookup_thenReturnsIt() {
-        flagCache.store(KEY, true);
+        flagCache.store(KEY, ON);
 
-        assertEquals(true, flagCache.lookup(KEY).orElseThrow());
+        assertEquals(ON, flagCache.lookup(KEY).orElseThrow());
     }
 
     @Test
@@ -43,21 +49,21 @@ class CaffeineFlagCacheTest {
     }
 
     @Test
-    @DisplayName("Given a stored false, when looked up, then false is returned rather than a miss")
-    void givenStoredFalse_whenLookup_thenReturnsFalseNotMiss() {
-        flagCache.store(KEY, false);
+    @DisplayName("Given a stored off rule set, when looked up, then it is returned rather than a miss")
+    void givenStoredOffRules_whenLookup_thenReturnsRulesNotMiss() {
+        flagCache.store(KEY, OFF);
 
         assertAll(
                 () -> assertTrue(flagCache.lookup(KEY).isPresent()),
-                () -> assertEquals(false, flagCache.lookup(KEY).orElseThrow())
+                () -> assertEquals(OFF, flagCache.lookup(KEY).orElseThrow())
         );
     }
 
     @Test
     @DisplayName("Given two environments, when one is evicted, then the other survives")
     void givenTwoEnvironments_whenOneEvicted_thenTheOtherSurvives() {
-        flagCache.store(KEY, true);
-        flagCache.store(OTHER_KEY, true);
+        flagCache.store(KEY, ON);
+        flagCache.store(OTHER_KEY, ON);
 
         flagCache.evict(KEY);
 
@@ -70,8 +76,8 @@ class CaffeineFlagCacheTest {
     @Test
     @DisplayName("Given stored values, when the cache is cleared, then none remain")
     void givenStoredValues_whenEvictAll_thenNoneRemain() {
-        flagCache.store(KEY, true);
-        flagCache.store(OTHER_KEY, false);
+        flagCache.store(KEY, ON);
+        flagCache.store(OTHER_KEY, OFF);
 
         flagCache.evictAll();
 

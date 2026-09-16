@@ -11,6 +11,7 @@ next evaluation call.
 - **Role-based auth** — JWT bearer tokens, with HTTP Basic kept as a fallback for scripts
 - **Admin page** — sign in, pick an environment, toggle flags, add and delete them
 - **Evaluation API** — public, cached in process, for other services to call
+- **Per-org targeting** — opt one org into a flag that is off, or out of one that is on
 - **Five environments** seeded at startup: DEV, Local, QA, PreLive, Production
 
 ## Running it
@@ -24,7 +25,7 @@ Needs **JDK 17+** and a **MySQL** running on `localhost:3306` with a database na
 
 Then open **http://localhost:9090** and sign in as `admin` / `admin123`.
 
-Run the tests with `./mvnw test` (53 tests; the `@SpringBootTest` ones need MySQL up).
+Run the tests with `./mvnw test` (64 tests; the `@SpringBootTest` ones need MySQL up).
 
 ## Using a flag from another service
 
@@ -38,6 +39,16 @@ curl "http://localhost:9090/api/v1/default/evaluate?flag=newCheckout&environment
 Answers are cached in process and evicted the moment someone toggles the flag, so a change in
 the admin page is visible on the very next call — no waiting for a TTL.
 
+Pass `orgId` and the answer respects any override set for that org:
+
+```bash
+curl "http://localhost:9090/api/v1/default/evaluate?flag=newCheckout&environment=DEV&orgId=60021234567"
+```
+
+Each data centre runs its own instance, so "enable for this DC" means toggling the flag in that
+DC's deployment. Overrides carry a `scope` column (`ORG`, `DC`, `USER`) so wiring another
+dimension later is a code change rather than a migration — only `ORG` is evaluated today.
+
 ## API
 
 Every `/api/v1/**` endpoint needs `Authorization: Bearer <token>` except `evaluate`.
@@ -45,13 +56,16 @@ Every `/api/v1/**` endpoint needs `Authorization: Bearer <token>` except `evalua
 | Method | Path | Role | Purpose |
 |---|---|---|---|
 | POST | `/auth/login` | — | `{username, password}` → `{token, username, role, expiresIn}` |
-| GET | `/api/v1/{app}/evaluate?flag=&environment=` | — | `true` / `false` — the hot path |
+| GET | `/api/v1/{app}/evaluate?flag=&environment=&orgId=` | — | `true` / `false` — the hot path. `orgId` optional |
 | GET | `/api/v1/environments` | VIEWER+ | List environments |
 | GET | `/api/v1/{app}/flags?environmentId=` | VIEWER+ | Flags and their state in one environment |
 | GET | `/api/v1/{app}/flags/{flagId}?environmentId=` | VIEWER+ | One flag's state |
 | POST | `/api/v1/{app}/flags` | EDITOR+ | `{name, description, environmentId:[…]}` → `201` |
 | PATCH | `/api/v1/{app}/flags/{flagId}` | EDITOR+ | `{enabled, environmentId}` — the toggle |
 | DELETE | `/api/v1/{app}/flags/{flagId}` | ADMIN | `204` |
+| GET | `/api/v1/{app}/flags/{flagId}/overrides?environmentId=` | VIEWER+ | Org overrides on a flag |
+| POST | `/api/v1/{app}/flags/{flagId}/overrides` | EDITOR+ | `{orgId, enabled, environmentId}` → `201` |
+| DELETE | `/api/v1/{app}/flags/{flagId}/overrides/{overrideId}` | ADMIN | `204` |
 | POST | `/api/v1/application` | EDITOR+ | Register an application |
 
 Roles are `VIEWER` (read), `EDITOR` (toggle and create), `ADMIN` (also delete).
@@ -79,6 +93,7 @@ Other service ──► /evaluate ──► FlagCache ──(miss only)──►
 |---|---|---|
 | Security | `security` | `JwtService`, `JwtAuthFilter`, JSON 401/403 handlers |
 | Cache | `cache` | `FlagCache` interface + Caffeine implementation |
+| Evaluation | `evaluation` | `FlagRules` — the environment default plus its org overrides |
 | Web | `controller` | Thin; DTOs in `controller/input` and `controller/output` |
 | Domain | `service`, `model`, `repository` | Spring Data JPA |
 
@@ -106,6 +121,10 @@ Other service ──► /evaluate ──► FlagCache ──(miss only)──►
   200 evaluations went from 200 SQL queries to 0, while wall-clock time was unchanged at
   ~0.15 ms per request — the bottleneck at this scale is HTTP, not the query. It starts
   mattering when the database is a network hop away or under connection-pool contention.
+- **The cache stores rules, not answers.** Keying on `(flag, app, environment)` and resolving
+  the org in memory keeps the entry count at flags × environments. Keying on the org instead
+  would multiply it by every org and never warm: measured, 100 evaluations for 100 different
+  orgs cost **0** queries.
 - **`FlagCache` is an interface** so a shared implementation (Redis) can replace the in-process
   one. Every write path evicts a single key, which is one `DEL` in Redis.
 
@@ -115,8 +134,10 @@ Deliberately out of scope for this POC, in rough order of what would come next:
 
 1. **Per-application isolation** — flags all belong to one seeded `default` application, and the
    `{app}` path variable is not checked against the flag being addressed.
-2. **Per-user targeting** — evaluation is a global on/off per environment. A `userId` would have
-   to be a request parameter, not the authenticated caller, since the end user of a calling
-   service never authenticates here.
-3. **Token revocation** — a token is valid until it expires; signing out only drops it locally.
-4. **Audit trail, Kafka/outbox, Redis** — design targets from the original sketch, not implemented.
+2. **Overrides in the admin page** — they are API-only today; the page shows the environment
+   default, not which orgs deviate from it.
+3. **Per-user and per-DC targeting** — the `scope` column supports `USER` and `DC`, but only
+   `ORG` is resolved. Like `orgId`, either would be a request parameter rather than the
+   authenticated caller, since the end user of a calling service never authenticates here.
+4. **Token revocation** — a token is valid until it expires; signing out only drops it locally.
+5. **Audit trail, Kafka/outbox, Redis** — design targets from the original sketch, not implemented.

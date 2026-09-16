@@ -1,5 +1,7 @@
 package com.flag.featureflagservice.cache;
 
+import com.flag.featureflagservice.evaluation.FlagRules;
+
 import java.util.Optional;
 
 /**
@@ -11,10 +13,10 @@ import java.util.Optional;
  */
 public interface FlagCache {
 
-    /** Empty means "not cached" — never "cached as false". */
-    Optional<Boolean> lookup(FlagCacheKey key);
+    /** Empty means "not cached" — never "cached as off". */
+    Optional<FlagRules> lookup(FlagCacheKey key);
 
-    void store(FlagCacheKey key, boolean enabled);
+    void store(FlagCacheKey key, FlagRules rules);
 
     void evict(FlagCacheKey key);
 

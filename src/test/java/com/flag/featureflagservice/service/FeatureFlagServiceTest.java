@@ -2,18 +2,24 @@ package com.flag.featureflagservice.service;
 
 import com.flag.featureflagservice.cache.FlagCache;
 import com.flag.featureflagservice.cache.FlagCacheKey;
+import com.flag.featureflagservice.controller.input.AddOverrideRequest;
+import com.flag.featureflagservice.evaluation.FlagRules;
 import com.flag.featureflagservice.controller.input.AddFeatureFlagRequest;
 import com.flag.featureflagservice.controller.input.UpdateFeatureFlagRequest;
 import com.flag.featureflagservice.exception.EnvironmentNotFoundException;
 import com.flag.featureflagservice.exception.FeatureFlagNotFoundException;
+import com.flag.featureflagservice.exception.OverrideNotFoundException;
 import com.flag.featureflagservice.model.Application;
 import com.flag.featureflagservice.model.Environment;
 import com.flag.featureflagservice.model.FeatureFlag;
 import com.flag.featureflagservice.model.FeatureFlagState;
+import com.flag.featureflagservice.model.FlagOverride;
+import com.flag.featureflagservice.model.OverrideScope;
 import com.flag.featureflagservice.repository.ApplicationRepository;
 import com.flag.featureflagservice.repository.EnvironmentRepository;
 import com.flag.featureflagservice.repository.FeatureFlagRepository;
 import com.flag.featureflagservice.repository.FeatureFlagStateRepository;
+import com.flag.featureflagservice.repository.FlagOverrideRepository;
 import com.flag.featureflagservice.security.CurrentUserProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,6 +30,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static com.flag.featureflagservice.TestConstants.APP_DESCRIPTION;
@@ -33,6 +40,7 @@ import static com.flag.featureflagservice.TestConstants.ENVIRONMENT_ID;
 import static com.flag.featureflagservice.TestConstants.ENVIRONMENT_NAME;
 import static com.flag.featureflagservice.TestConstants.FLAG_DESCRIPTION;
 import static com.flag.featureflagservice.TestConstants.FLAG_KEY;
+import static com.flag.featureflagservice.TestConstants.ORG_ID;
 import static com.flag.featureflagservice.TestConstants.OTHER_ENVIRONMENT_NAME;
 import static com.flag.featureflagservice.TestConstants.SYSTEM_USER;
 import static com.flag.featureflagservice.TestConstants.USERNAME;
@@ -67,6 +75,9 @@ class FeatureFlagServiceTest {
 
     @Mock
     private FlagCache flagCache;
+
+    @Mock
+    private FlagOverrideRepository flagOverrideRepository;
 
     @InjectMocks
     private FeatureFlagService featureFlagService;
@@ -116,8 +127,10 @@ class FeatureFlagServiceTest {
     void givenEnabledFlag_whenEvaluate_thenReturnsTrue() {
         when(featureFlagStateRepository.findForEvaluation(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME))
                 .thenReturn(Optional.of(state(true)));
+        when(flagOverrideRepository.findForEvaluation(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME, OverrideScope.ORG))
+                .thenReturn(List.of());
 
-        assertTrue(featureFlagService.evaluate(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME));
+        assertTrue(featureFlagService.evaluate(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME, null));
     }
 
     @Test
@@ -127,7 +140,7 @@ class FeatureFlagServiceTest {
                 .thenReturn(Optional.empty());
         when(environmentRepository.existsByName(ENVIRONMENT_NAME)).thenReturn(true);
 
-        assertFalse(featureFlagService.evaluate(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME));
+        assertFalse(featureFlagService.evaluate(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME, null));
     }
 
     @Test
@@ -138,15 +151,15 @@ class FeatureFlagServiceTest {
         when(environmentRepository.existsByName(ENVIRONMENT_NAME)).thenReturn(false);
 
         assertThrows(EnvironmentNotFoundException.class,
-                () -> featureFlagService.evaluate(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME));
+                () -> featureFlagService.evaluate(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME, null));
     }
 
     @Test
     @DisplayName("Given a cached answer, when evaluating, then the database is never queried")
     void givenCachedAnswer_whenEvaluate_thenDatabaseIsNeverQueried() {
-        when(flagCache.lookup(cacheKey())).thenReturn(Optional.of(true));
+        when(flagCache.lookup(cacheKey())).thenReturn(Optional.of(new FlagRules(true, Map.of())));
 
-        boolean enabled = featureFlagService.evaluate(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME);
+        boolean enabled = featureFlagService.evaluate(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME, null);
 
         assertTrue(enabled);
         verify(featureFlagStateRepository, never()).findForEvaluation(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME);
@@ -158,10 +171,12 @@ class FeatureFlagServiceTest {
         when(flagCache.lookup(cacheKey())).thenReturn(Optional.empty());
         when(featureFlagStateRepository.findForEvaluation(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME))
                 .thenReturn(Optional.of(state(true)));
+        when(flagOverrideRepository.findForEvaluation(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME, OverrideScope.ORG))
+                .thenReturn(List.of());
 
-        featureFlagService.evaluate(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME);
+        featureFlagService.evaluate(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME, null);
 
-        verify(flagCache).store(cacheKey(), true);
+        verify(flagCache).store(cacheKey(), new FlagRules(true, Map.of()));
     }
 
     @Test
@@ -172,10 +187,10 @@ class FeatureFlagServiceTest {
                 .thenReturn(Optional.empty());
         when(environmentRepository.existsByName(ENVIRONMENT_NAME)).thenReturn(true);
 
-        featureFlagService.evaluate(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME);
+        featureFlagService.evaluate(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME, null);
 
         // Caching the miss would hide the flag until the entry expired, once someone created it.
-        verify(flagCache, never()).store(cacheKey(), false);
+        verify(flagCache, never()).store(any(), any());
     }
 
     @Test
@@ -241,6 +256,83 @@ class FeatureFlagServiceTest {
                 () -> verify(flagCache, never()).evict(cacheKey()),
                 () -> verify(flagCache, never()).evictAll()
         );
+    }
+
+    @Test
+    @DisplayName("Given an org override, when evaluating for that org, then the override wins")
+    void givenOrgOverride_whenEvaluateForThatOrg_thenOverrideWins() {
+        when(flagCache.lookup(cacheKey()))
+                .thenReturn(Optional.of(new FlagRules(false, Map.of(ORG_ID, true))));
+
+        assertAll(
+                () -> assertTrue(featureFlagService.evaluate(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME, ORG_ID)),
+                () -> assertFalse(featureFlagService.evaluate(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME, null))
+        );
+    }
+
+    @Test
+    @DisplayName("Given overrides in the database, when caching, then they are cached with the default")
+    void givenOverridesInDatabase_whenCaching_thenTheyAreCachedWithTheDefault() {
+        when(flagCache.lookup(cacheKey())).thenReturn(Optional.empty());
+        when(featureFlagStateRepository.findForEvaluation(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME))
+                .thenReturn(Optional.of(state(false)));
+        when(flagOverrideRepository.findForEvaluation(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME, OverrideScope.ORG))
+                .thenReturn(List.of(override(ORG_ID, true)));
+
+        boolean enabled = featureFlagService.evaluate(FLAG_KEY, DEFAULT_APP, ENVIRONMENT_NAME, ORG_ID);
+
+        assertAll(
+                () -> assertTrue(enabled),
+                () -> verify(flagCache).store(cacheKey(), new FlagRules(false, Map.of(ORG_ID, true)))
+        );
+    }
+
+    @Test
+    @DisplayName("Given a new override, when added, then that flag's cache entry is evicted")
+    void givenNewOverride_whenAdded_thenCacheEntryIsEvicted() {
+        when(featureFlagRepository.findById(1L)).thenReturn(Optional.of(flag()));
+        when(environmentRepository.findById(ENVIRONMENT_ID)).thenReturn(Optional.of(environment()));
+        when(currentUserProvider.currentUsername()).thenReturn(USERNAME);
+        when(flagOverrideRepository.save(any(FlagOverride.class))).thenAnswer(call -> call.getArgument(0));
+
+        featureFlagService.addOverride(1L, overrideRequest());
+
+        verify(flagCache).evict(cacheKey());
+    }
+
+    @Test
+    @DisplayName("Given an override that does not exist, when deleting it, then it is reported as not found")
+    void givenOverrideThatDoesNotExist_whenDeleting_thenThrowsOverrideNotFound() {
+        when(flagOverrideRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(OverrideNotFoundException.class, () -> featureFlagService.deleteOverride(1L));
+    }
+
+    @Test
+    @DisplayName("Given an existing override, when deleted, then that flag's cache entry is evicted")
+    void givenExistingOverride_whenDeleted_thenCacheEntryIsEvicted() {
+        when(flagOverrideRepository.findById(1L)).thenReturn(Optional.of(override(ORG_ID, true)));
+
+        featureFlagService.deleteOverride(1L);
+
+        verify(flagCache).evict(cacheKey());
+    }
+
+    private AddOverrideRequest overrideRequest() {
+        AddOverrideRequest request = new AddOverrideRequest();
+        request.setOrgId(ORG_ID);
+        request.setEnabled(true);
+        request.setEnvironmentId(ENVIRONMENT_ID);
+        return request;
+    }
+
+    private FlagOverride override(String orgId, boolean enabled) {
+        return new FlagOverride(1L, flag(), environment(), OverrideScope.ORG, orgId, enabled,
+                Instant.now(), USERNAME);
+    }
+
+    private FeatureFlag flag() {
+        return new FeatureFlag(1L, FLAG_KEY, FLAG_DESCRIPTION, application(), Instant.now(), USERNAME);
     }
 
     private FlagCacheKey cacheKey() {

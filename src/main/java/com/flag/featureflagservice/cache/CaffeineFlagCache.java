@@ -1,5 +1,6 @@
 package com.flag.featureflagservice.cache;
 
+import com.flag.featureflagservice.evaluation.FlagRules;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,7 +18,7 @@ import java.util.Optional;
 @Component
 public class CaffeineFlagCache implements FlagCache {
 
-    private final Cache<FlagCacheKey, Boolean> cache;
+    private final Cache<FlagCacheKey, FlagRules> cache;
 
     public CaffeineFlagCache(@Value("${app.cache.ttl-seconds:600}") long ttlSeconds,
                              @Value("${app.cache.max-size:10000}") long maxSize) {
@@ -28,13 +29,13 @@ public class CaffeineFlagCache implements FlagCache {
     }
 
     @Override
-    public Optional<Boolean> lookup(FlagCacheKey key) {
+    public Optional<FlagRules> lookup(FlagCacheKey key) {
         return Optional.ofNullable(cache.getIfPresent(key));
     }
 
     @Override
-    public void store(FlagCacheKey key, boolean enabled) {
-        cache.put(key, enabled);
+    public void store(FlagCacheKey key, FlagRules rules) {
+        cache.put(key, rules);
     }
 
     @Override

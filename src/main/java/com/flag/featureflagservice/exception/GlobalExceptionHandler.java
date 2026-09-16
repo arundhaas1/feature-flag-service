@@ -21,7 +21,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({FeatureFlagNotFoundException.class,
             ApplicationNotFoundException.class,
-            EnvironmentNotFoundException.class})
+            EnvironmentNotFoundException.class,
+            OverrideNotFoundException.class})
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ErrorResponse handleNotFound(RuntimeException ex) {
         return ErrorResponse.of(ex.getMessage());
