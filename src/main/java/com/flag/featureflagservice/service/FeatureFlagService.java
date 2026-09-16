@@ -80,6 +80,10 @@ public class FeatureFlagService {
 
     @Transactional
     public void deleteFlag(Long flagId) {
+        if (!featureFlagRepository.existsById(flagId)) {
+            throw new FeatureFlagNotFoundException(flagId);
+        }
+
         // Read the keys before the rows go: afterwards there is nothing left to derive them from.
         List<FlagCacheKey> staleKeys = featureFlagStateRepository.findByFlagId(flagId).stream()
                 .map(FeatureFlagService::keyFor)

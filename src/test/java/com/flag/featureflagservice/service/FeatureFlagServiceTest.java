@@ -5,6 +5,7 @@ import com.flag.featureflagservice.cache.FlagCacheKey;
 import com.flag.featureflagservice.controller.input.AddFeatureFlagRequest;
 import com.flag.featureflagservice.controller.input.UpdateFeatureFlagRequest;
 import com.flag.featureflagservice.exception.EnvironmentNotFoundException;
+import com.flag.featureflagservice.exception.FeatureFlagNotFoundException;
 import com.flag.featureflagservice.model.Application;
 import com.flag.featureflagservice.model.Environment;
 import com.flag.featureflagservice.model.FeatureFlag;
@@ -191,8 +192,31 @@ class FeatureFlagServiceTest {
     }
 
     @Test
+    @DisplayName("Given a flag that does not exist, when deleting it, then it is reported as not found")
+    void givenFlagThatDoesNotExist_whenDeleteFlag_thenThrowsFeatureFlagNotFound() {
+        when(featureFlagRepository.existsById(1L)).thenReturn(false);
+
+        assertThrows(FeatureFlagNotFoundException.class, () -> featureFlagService.deleteFlag(1L));
+    }
+
+    @Test
+    @DisplayName("Given a flag that does not exist, when deleting it, then nothing is deleted or evicted")
+    void givenFlagThatDoesNotExist_whenDeleteFlag_thenNothingIsDeletedOrEvicted() {
+        when(featureFlagRepository.existsById(1L)).thenReturn(false);
+
+        assertThrows(FeatureFlagNotFoundException.class, () -> featureFlagService.deleteFlag(1L));
+
+        assertAll(
+                () -> verify(featureFlagStateRepository, never()).deleteByFlagId(1L),
+                () -> verify(featureFlagRepository, never()).deleteById(1L),
+                () -> verify(flagCache, never()).evictAll()
+        );
+    }
+
+    @Test
     @DisplayName("Given a flag in two environments, when deleting it, then only its own keys are evicted")
     void givenFlagInTwoEnvironments_whenDeleteFlag_thenOnlyItsOwnKeysAreEvicted() {
+        when(featureFlagRepository.existsById(1L)).thenReturn(true);
         when(featureFlagStateRepository.findByFlagId(1L))
                 .thenReturn(List.of(stateIn(ENVIRONMENT_NAME, true), stateIn(OTHER_ENVIRONMENT_NAME, false)));
 
@@ -208,6 +232,7 @@ class FeatureFlagServiceTest {
     @Test
     @DisplayName("Given a flag with no state rows, when deleting it, then nothing is evicted")
     void givenFlagWithNoStateRows_whenDeleteFlag_thenNothingIsEvicted() {
+        when(featureFlagRepository.existsById(1L)).thenReturn(true);
         when(featureFlagStateRepository.findByFlagId(1L)).thenReturn(List.of());
 
         featureFlagService.deleteFlag(1L);

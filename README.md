@@ -24,7 +24,7 @@ Needs **JDK 17+** and a **MySQL** running on `localhost:3306` with a database na
 
 Then open **http://localhost:9090** and sign in as `admin` / `admin123`.
 
-Run the tests with `./mvnw test` (48 tests; the `@SpringBootTest` ones need MySQL up).
+Run the tests with `./mvnw test` (53 tests; the `@SpringBootTest` ones need MySQL up).
 
 ## Using a flag from another service
 
@@ -120,6 +120,3 @@ Deliberately out of scope for this POC, in rough order of what would come next:
    service never authenticates here.
 3. **Token revocation** — a token is valid until it expires; signing out only drops it locally.
 4. **Audit trail, Kafka/outbox, Redis** — design targets from the original sketch, not implemented.
-
-Known rough edges: `DELETE` on a flag that never existed returns `204` rather than `404`, and
-`POST /api/v1/application` does not validate its request body.

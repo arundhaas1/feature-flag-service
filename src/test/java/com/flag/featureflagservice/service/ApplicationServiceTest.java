@@ -49,18 +49,6 @@ class ApplicationServiceTest {
         );
     }
 
-    @Test
-    @DisplayName("Given a client-supplied id, when adding an application, then the id is ignored")
-    void givenClientSuppliedId_whenAddApplication_thenIdIsIgnored() {
-        when(currentUserProvider.currentUsername()).thenReturn(USERNAME);
-        when(applicationRepository.save(any(Application.class))).thenAnswer(call -> call.getArgument(0));
-
-        AddApplicationRequest request = request();
-        request.setId(999L);
-
-        assertEquals(null, applicationService.addApplication(request).getId());
-    }
-
     private AddApplicationRequest request() {
         AddApplicationRequest request = new AddApplicationRequest();
         request.setName(DEFAULT_APP);

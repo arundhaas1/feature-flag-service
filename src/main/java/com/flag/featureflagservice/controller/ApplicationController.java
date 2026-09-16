@@ -4,6 +4,7 @@ import com.flag.featureflagservice.controller.input.AddApplicationRequest;
 import com.flag.featureflagservice.controller.output.ApplicationResponse;
 import com.flag.featureflagservice.model.Application;
 import com.flag.featureflagservice.service.ApplicationService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -16,7 +17,7 @@ public class ApplicationController {
     }
 
     @PostMapping("/application")
-    public ApplicationResponse addApplication(@RequestBody AddApplicationRequest addApplicationRequest){
+    public ApplicationResponse addApplication(@Valid @RequestBody AddApplicationRequest addApplicationRequest){
         Application application =  applicationService.addApplication(addApplicationRequest);
         return new ApplicationResponse(application);
     }
